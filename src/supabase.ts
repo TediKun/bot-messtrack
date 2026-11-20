@@ -67,6 +67,18 @@ export const fallbackUsers: User[] = [
 
 export const supabase = createClient(
   config.supabaseUrl || 'https://placeholder.supabase.co',
-  config.supabaseServiceRoleKey || 'placeholder'
+  config.supabaseServiceRoleKey || 'placeholder',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    realtime: {
+      // Nonaktifkan realtime WebSocket client karena bot memakai REST query & polling
+      params: {
+        eventsPerSecond: 1,
+      },
+    },
+  }
 );
 
