@@ -1,0 +1,21 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+
+# Environment secrets (JANGAN PERNAH DI-COMMIT)
+.env
+.env*.local
+
+# Baileys WhatsApp Session & Auth Credentials (SANGAT KRUSIAL - JANGAN DI-COMMIT)
+auth_info_baileys/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
