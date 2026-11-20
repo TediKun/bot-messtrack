@@ -19,3 +19,4 @@ services:
         sync: false
       - key: WA_MESS_GROUP_JID
         sync: false
+
