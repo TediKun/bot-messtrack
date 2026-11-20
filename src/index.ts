@@ -289,6 +289,12 @@ async function startBot() {
       console.log('📌 SCAN QR CODE BERIKUT DENGAN WHATSAPP ANDA:');
       console.log('======================================================\n');
       qrcode.generate(qr, { small: true });
+
+      // Link instan agar bisa dibuka langsung di browser jika tampilan log terminal patah/terpotong
+      const qrScannerUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qr)}`;
+      console.log('\n🔗 [LINK GAMBAR QR JELAS]:');
+      console.log(qrScannerUrl);
+      console.log('(Buka link di atas di browser untuk scan QR gambar yang mulus)\n');
     }
 
     if (connection === 'close') {
