@@ -156,10 +156,22 @@ Aturan gaya: bahasa Indonesia sopan namun tegas, tanpa menghakimi, tanpa memihak
 /**
  * Natural Language Query via Gemini for "Aira"
  */
+// Pelacak kuota pertanyaan di luar konteks mess per pengguna (maksimal 2x per user)
+const outOfContextUsage = new Map<string, number>();
+
+export function getOutOfContextCount(userIdOrPhone: string): number {
+  return outOfContextUsage.get(userIdOrPhone) || 0;
+}
+
+export function resetOutOfContextCount(userIdOrPhone: string): void {
+  outOfContextUsage.delete(userIdOrPhone);
+}
+
 export async function askAira(
   userQuery: string,
   senderName: string,
-  mode: 'chat' | 'conflict' = 'chat'
+  mode: 'chat' | 'conflict' = 'chat',
+  userIdentifier: string = ''
 ): Promise<string> {
   if (!genAI) {
     return `Halo kak ${senderName}! Aira di sini. Saat ini GEMINI_API_KEY belum diisi di bot .env, tetapi pencatatan tugas via hashtag (#sampah, #sapu, #pel, #wc) tetap aktif!`;
@@ -253,17 +265,30 @@ export async function askAira(
       }
     }
 
+    // Cek kuota pertanyaan di luar konteks (hanya jika mode chat biasa)
+    const userKey = userIdentifier || senderName;
+    const currentOffTopicCount = outOfContextUsage.get(userKey) || 0;
+
     const model = genAI.getGenerativeModel({
       model: 'gemini-flash-lite-latest',
-      systemInstruction: `Kamu adalah Aira, asisten mess yang cerdas, sopan, tetapi tegas, untuk 5 penghuni (Cecep, Dadan, Sofwan, Tedi, Rama).
-Kamu BOLEH dan HARUS menjawab semua pertanyaan seputar:
-- Jadwal piket, siapa yang bertugas, tugas harian (sampah, sapu, pel, WC, galon)
-- Keuangan mess: saldo/sisa uang kas, pemasukan, pengeluaran, iuran kas & WiFi (Rp 65.000/bulan), tunggakan, denda, rekap
-- Kebersihan: tips & cara yang benar membersihkan/mengepel/menyapu/membersihkan WC/membuang sampah, serta hal lain yang berkaitan dengan kebersihan mess
-Untuk pertanyaan angka (kas, denda, tunggakan, jadwal) WAJIB gunakan data konteks di bawah, jangan mengarang. Jika data tidak ada, katakan terus terang.
-Jika pertanyaan sama sekali tidak berkaitan dengan mess (jadwal, piket, keuangan, kebersihan), tolak dengan sopan dan arahkan ke topik mess.
+      systemInstruction: `Kamu adalah Aira, asisten mess pintar, bijaksana, dan problem solver untuk 5 penghuni (Cecep, Dadan, Sofwan, Tedi, Rama).
+Tugas utamamu adalah mendisiplinkan ketertiban kebersihan, memperbaiki sistem manual mess menjadi rapi, menjaga transparansi kas, serta menyelesaikan masalah antarpenghuni secara adil dan solutif.
+
+RUANG LINGKUP UTAMA (SELALU JAWAB BEBAS & DETAIL):
+1. Jadwal piket, giliran tugas harian (#sampah, #sapu, #pel, #wc, galon).
+2. Keuangan mess: saldo sisa uang kas, pemasukan, pengeluaran belanja mess, iuran kas & WiFi (Rp65.000/bulan), tunggakan, denda, serta rekap.
+3. Kebersihan & tata tertib mess: tips mengepel/menyapu/kuras WC yang bersih, aturan fasilitas bersama, serta saran menjaga kebersihan mess.
+
+ATURAN PERTANYAAN DI LUAR KONTEKS MESS:
+Pengguna ini sudah menanyakan pertanyaan di luar topik mess sebanyak: ${currentOffTopicCount} kali (batas maksimal 2 kali).
+- JIKA pertanyaan pengguna berkaitan dengan jadwal, piket, kebersihan, uang, kas, denda, atau masalah mess: Jawablah dengan tuntas dan ramah sesuai fakta di bawah. JANGAN sebutkan batas kuota.
+- JIKA pertanyaan SAMA SEKALI DI LUAR konteks mess (misal matematika umum, politik, gosip, coding umum, curhat di luar mess, dsb):
+  * Jika count < 2: Kamu BOLEH menjawab pertanyaannya secara singkat, cerdas, dan ramah, TETAPI di akhir jawaban WAJIB beri pengingat sopan:
+    "_(Catatan: Aira fokus membantu kebersihan & kas mess. Kuota tanya di luar topik mess tersisa ${1 - currentOffTopicCount} kali lagi ya kak ${senderName}! 😊)_"
+  * Jika count >= 2: TOLAK DENGAN TEGAS TAPI SOPAN. Jelaskan bahwa kuota tanya di luar topik mess sudah habis (maksimal 2 kali), dan ingatkan tugasmu berfokus membantu ketertiban piket, transparansi kas, dan penyelesaian masalah di mess. Arahkan kembali ke topik mess.
+
 Jawab singkat, jelas, bahasa Indonesia, format WhatsApp (gunakan *tebal* dan emoji secukupnya).
-ATURAN KHUSUS:
+ATURAN KHUSUS KAS & DENDA:
 - Jika ditanya sisa/saldo uang kas: sebutkan *saldo saat ini*, lalu rinci SEMUA pengeluaran sebagai daftar bernomor (keperluan, nominal, tanggal). JANGAN membahas pemasukan (pemasukan hanya dari bayar kas). Jika ada denda belum lunas, tambahkan rincian denda per orang (siapa, nominal, alasan).
 - Jika ditanya denda: rinci per penghuni — nominal dan penyebabnya (mis. kurang sapu 2x = Rp5.000). Sebutkan total.
 - Aturan piket mingguan (dihitung setiap Sabtu 23:59): Sapu 5x, Pel 2x, WC 1x. Denda: kurang sapu/pel Rp2.500 per kekurangan, belum bersihkan WC Rp5.000. Jika ditanya rekap/progres minggu ini, hitung dari data laporan tugas dan jelaskan siapa yang belum memenuhi target dan dendanya.
@@ -276,7 +301,14 @@ Hari ini: ${today} (bulan ${curMonth}/${curYear}).
     });
 
     const result = await model.generateContent(`Pengguna: ${senderName}\nPertanyaan: ${userQuery}`);
-    return result.response.text();
+    const answer = result.response.text();
+
+    // Deteksi apakah jawaban menyertakan tanda di luar topik
+    if (mode === 'chat' && (answer.includes('di luar topik mess') || answer.includes('fokus membantu kebersihan'))) {
+      outOfContextUsage.set(userKey, currentOffTopicCount + 1);
+    }
+
+    return answer;
   } catch (err: unknown) {
     console.error('Error asking Aira:', err);
     return `Maaf kak ${senderName}, Aira sedang mengalami gangguan koneksi ke AI. Silakan coba beberapa saat lagi ya!`;

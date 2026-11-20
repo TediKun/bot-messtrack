@@ -185,13 +185,18 @@ function isBotJid(sock: WASocket, jid?: string | null): boolean {
 }
 
 const WELCOME_TEXT =
-  `👋 *Halo semuanya! Salam kenal, saya Aira (MessTrack Bot).* 🤖✨\n\n` +
-  `Saya bertugas membantu otomatisasi piket mess dan transparansi kas:\n` +
-  `• 🧹 *Lapor Piket:* Kirim foto dengan hashtag misal \`#sampah\`, \`#sapu\`, \`#pel\`, \`#wc\`\n` +
-  `• 💰 *Catat Pengeluaran:* Ketik \`#keluar [Nominal] [Keterangan]\`\n` +
-  `• 💳 *Bayar Kas:* Kirim foto bukti transfer dengan caption \`#bayarkas\`\n` +
-  `• 💬 *Tanya Jawab:* Tag saya di grup, atau chat pribadi langsung ke nomor ini.\n\n` +
-  `_Grup ini telah terdaftar otomatis untuk pengingat jadwal pagi (06:30 WIB) & iuran kas._`;
+  `👋 *Halo rekan-rekan mess! Salam kenal, saya Aira (MessTrack AI).* 🤖✨\n\n` +
+  `Saya hadir di grup ini sebagai *problem solver* untuk membenahi sistem manual menjadi serba otomatis, teratur, dan transparan:\n\n` +
+  `🎯 *Misi Utama Aira:*\n` +
+  `1. *Ketertiban & Kebersihan Mess:* Memastikan jadwal piket harian berjalan disiplin tanpa saling tunjuk, mencatat bukti foto secara real-time, dan mengevaluasi target mingguan otomatis.\n` +
+  `2. *Transparansi Kas & Finansial:* Mencatat keluar-masuk uang kas secara terbuka tanpa ada kecurigaan atau pencatatan manual yang rawan selip.\n` +
+  `3. *Penyelesai Masalah & Mediator:* Bersikap adil, tegas, dan netral membantu Admin menengahi kesalahpahaman atau perselisihan tugas di mess secara bijaksana.\n\n` +
+  `📌 *Panduan Penggunaan Singkat:*\n` +
+  `• 🧹 *Lapor Piket:* Kirim foto bukti dengan hashtag \`#sampah\`, \`#sapu\`, \`#pel\`, atau \`#wc\`\n` +
+  `• 💰 *Catat Belanja Mess:* Ketik \`#keluar [Nominal] [Keterangan]\` (misal: \`#keluar 35000 beli wipol & sabun\`)\n` +
+  `• 💳 *Bayar Iuran/Kas:* Kirim foto bukti transfer dengan caption \`#bayarkas\`\n` +
+  `• 💬 *Tanya Jawab / Diskusi:* Cukup tag @Aira di grup ini atau chat pribadi langsung ke nomor saya.\n\n` +
+  `_Mari kita jaga kenyamanan, kekompakan, dan kebersihan mess bersama-sama!_ 🌟💪`;
 
 // Daftarkan grup sebagai grup mess + kirim sambutan (dipanggil saat bot dimasukkan ke grup)
 const welcomedGroups = new Set<string>();
@@ -896,7 +901,7 @@ async function startBot() {
         // Hapus tag @nomorbot / @aira dari teks pertanyaan
         const cleanQuery =
           textMessage.replace(/@aira/gi, '').replace(/@\d{6,}/g, '').trim() || 'Halo';
-        const aiResponse = await askAira(cleanQuery, user.name);
+        const aiResponse = await askAira(cleanQuery, user.name, 'chat', user.id || senderPhone);
         await sock.sendMessage(remoteJid, { text: aiResponse }, { quoted: msg });
       }
     }
