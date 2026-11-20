@@ -27,3 +27,4 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/auth_info_baileys
 
 CMD ["node", "dist/index.js"]
+

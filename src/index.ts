@@ -233,7 +233,9 @@ const noOpDevicesCache: CacheStore = {
 };
 
 async function startBot() {
-  const authDir = path.resolve(process.cwd(), 'auth_info_baileys');
+  const authDir = process.env.AUTH_DIR
+    ? path.resolve(process.env.AUTH_DIR)
+    : path.resolve(process.cwd(), 'auth_info_baileys');
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
   const silentLogger = pino({ level: 'silent' });

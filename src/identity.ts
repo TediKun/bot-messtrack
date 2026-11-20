@@ -8,7 +8,10 @@ import path from 'path';
  * mencocokkan pengirim dengan nomor yang terdaftar di database.
  */
 
-const MAP_FILE = path.resolve(process.cwd(), 'auth_info_baileys', 'lid-pn-map.json');
+const authDir = process.env.AUTH_DIR
+  ? path.resolve(process.env.AUTH_DIR)
+  : path.resolve(process.cwd(), 'auth_info_baileys');
+const MAP_FILE = path.resolve(authDir, 'lid-pn-map.json');
 const lidToPn = new Map<string, string>();
 
 function load() {
