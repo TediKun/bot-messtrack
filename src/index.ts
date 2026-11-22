@@ -20,6 +20,7 @@ import { verifyTaskPhoto, scanReceiptAmount, askAira } from './ai.js';
 import { setupCronJobs } from './cron.js';
 import { startFinanceWatcher } from './watcher.js';
 import { generateFinanceExcelBuffer } from './excel.js';
+import { getJakartaDate, getJakartaMonthYear, formatJakartaDateID } from './time.js';
 
 // Clean and normalize phone number into standard variants
 function cleanNumberOnly(str: string): string {
@@ -191,6 +192,9 @@ const WELCOME_TEXT =
   `1. *Ketertiban & Kebersihan Mess:* Memastikan jadwal piket harian berjalan disiplin tanpa saling tunjuk, mencatat bukti foto secara real-time, dan mengevaluasi target mingguan otomatis.\n` +
   `2. *Transparansi Kas & Finansial:* Mencatat keluar-masuk uang kas secara terbuka tanpa ada kecurigaan atau pencatatan manual yang rawan selip.\n` +
   `3. *Penyelesai Masalah & Mediator:* Bersikap adil, tegas, dan netral membantu Admin menengahi kesalahpahaman atau perselisihan tugas di mess secara bijaksana.\n\n` +
+  `🌐 *Dashboard MessTrack:*\n` +
+  `Untuk detail piket dan keuangan bisa dicek di dashboard:\n` +
+  `👉 https://mess-track-steel.vercel.app/\n\n` +
   `📌 *Panduan Penggunaan Singkat:*\n` +
   `• 🧹 *Lapor Piket:* Kirim foto bukti dengan hashtag \`#sampah\`, \`#sapu\`, \`#pel\`, atau \`#wc\`\n` +
   `• 💰 *Catat Belanja Mess:* Ketik \`#keluar [Nominal] [Keterangan]\` (misal: \`#keluar 35000 beli wipol & sabun\`)\n` +
@@ -426,7 +430,7 @@ async function startBot() {
         }
 
         if (verificationResult.isValid) {
-          const today = new Date().toISOString().split('T')[0];
+          const today = getJakartaDate();
           if (config.isConfigured()) {
             await supabase.from('task_logs').insert({
               user_id: user.id,
@@ -441,7 +445,7 @@ async function startBot() {
             `✅ *TUGAS TERVERIFIKASI & TERCATAT!*\n\n` +
             `👤 *Penghuni:* ${user.name}\n` +
             `🧹 *Tugas:* #${rawTask}\n` +
-            `📅 *Tanggal:* ${new Date().toLocaleDateString('id-ID')}\n` +
+            `📅 *Tanggal:* ${formatJakartaDateID()}\n` +
             `🤖 *Catatan Aira:* ${verificationResult.explanation}\n\n` +
             `Terima kasih sudah menjaga kebersihan mess hari ini! 🌟`;
 
@@ -486,9 +490,7 @@ async function startBot() {
           const mimeType = msg.message.imageMessage?.mimetype || 'image/jpeg';
           const ocrResult = await scanReceiptAmount(buffer as Buffer, mimeType);
 
-          const now = new Date();
-          const currentMonth = now.getMonth() + 1;
-          const currentYear = now.getFullYear();
+          const { month: currentMonth, year: currentYear } = getJakartaMonthYear();
 
           if (!ocrResult.success || ocrResult.amount === null) {
             await sock.sendMessage(
@@ -795,7 +797,7 @@ async function startBot() {
 
         try {
           const excelBuffer = await generateFinanceExcelBuffer();
-          const todayDate = new Date().toISOString().split('T')[0];
+          const todayDate = getJakartaDate();
           const fileName = `Laporan_Keuangan_MessTrack_${todayDate}.xlsx`;
 
           await sock.sendMessage(

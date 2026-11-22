@@ -2,15 +2,16 @@ import cron from 'node-cron';
 import { WASocket } from '@whiskeysockets/baileys';
 import { supabase, fallbackUsers } from './supabase.js';
 import { config } from './config.js';
+import { TIMEZONE, getJakartaDate, getJakartaWeekRange, getJakartaMonthYear, getJakartaDayName } from './time.js';
 
 export function setupCronJobs(getSock: () => WASocket) {
   // Helper to dynamically get group JID (so if auto-detected runtime, it immediately applies)
   const getTargetGroupJid = () => config.waMessGroupJid;
 
-  // 1. Morning Reminder (Daily at 06:30 AM)
+  // 1. Morning Reminder (Daily at 06:30 AM WIB)
   // Tags scheduled person specifically for "Buang Sampah"
   cron.schedule('30 6 * * *', async () => {
-    console.log('[CRON] Running 06:30 AM Morning Reminder...');
+    console.log('[CRON] Running 06:30 AM Morning Reminder (WIB)...');
     const targetGroupJid = getTargetGroupJid();
     if (!targetGroupJid) {
       console.warn('[CRON] WA_MESS_GROUP_JID is not configured. Skipping reminder broadcast.');
@@ -18,7 +19,8 @@ export function setupCronJobs(getSock: () => WASocket) {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getJakartaDate();
+      const dayName = getJakartaDayName();
       let assignedUserName = 'Penghuni yang bertugas';
       let assignedPhone = '';
 
@@ -38,9 +40,10 @@ export function setupCronJobs(getSock: () => WASocket) {
       const mentionTag = assignedPhone ? `@${assignedPhone}` : assignedUserName;
       const message = `🌅 *PENGINGAT PAGI PIKET MESS* 🌅\n\n` +
         `Selamat pagi rekan-rekan mess! ☀️\n` +
-        `Jadwal piket hari ini (${today}) adalah giliran:\n` +
+        `Jadwal piket hari ini (*${dayName}, ${today}*) adalah giliran:\n` +
         `👉 *${mentionTag}*\n\n` +
         `⚠️ *WAJIB:* Jangan lupa buang sampah pagi ini sebelum beraktivitas ya! Silakan kirim foto sampah ke grup dengan hashtag *#sampah* untuk verifikasi.\n\n` +
+        `🌐 *Dashboard:* Detail piket & keuangan dapat dicek di https://mess-track-steel.vercel.app/\n\n` +
         `Semangat menjaga kebersihan mess kita! 💪✨`;
 
       await getSock().sendMessage(targetGroupJid, {
@@ -52,24 +55,22 @@ export function setupCronJobs(getSock: () => WASocket) {
     } catch (err: unknown) {
       console.error('[CRON] Failed to send morning reminder:', err);
     }
+  }, {
+    timezone: TIMEZONE,
   });
 
-  // 2. Weekly Penalty Calculation (Every Saturday at 23:59)
+  // 2. Weekly Penalty Calculation (Every Saturday at 23:59 WIB)
   // Cut-Off: Sapu: 5x, Pel: 2x, WC: 1x, Sampah: per hari mangkir
   cron.schedule('59 23 * * 6', async () => {
-    console.log('[CRON] Running Saturday 23:59 Weekly Penalty Cut-off Calculation...');
+    console.log('[CRON] Running Saturday 23:59 Weekly Penalty Cut-off Calculation (WIB)...');
     if (!config.isConfigured()) {
       console.warn('[CRON] Supabase not connected. Skipping weekly fine insert.');
       return;
     }
 
     try {
-      const now = new Date();
-      // Calculate start of current week (Sunday) to Saturday
-      const saturdayDate = now.toISOString().split('T')[0];
-      const sunday = new Date(now);
-      sunday.setDate(now.getDate() - 6);
-      const sundayDate = sunday.toISOString().split('T')[0];
+      const { sundayDate, saturdayDate } = getJakartaWeekRange();
+      const { month: fineMonth, year: fineYear } = getJakartaMonthYear();
 
       // Get schedules for this week
       const { data: weekSchedules } = await supabase
@@ -125,8 +126,8 @@ export function setupCronJobs(getSock: () => WASocket) {
           // Insert fine into fines table
           await supabase.from('fines').insert({
             user_id: userId,
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
+            month: fineMonth,
+            year: fineYear,
             amount: penaltyAmount,
             reason: `Evaluasi Mingguan (${sundayDate} s/d ${saturdayDate}): ${reasons.join(', ')}`,
             is_paid: false
@@ -156,7 +157,7 @@ export function setupCronJobs(getSock: () => WASocket) {
           `Periode: ${sundayDate} s/d ${saturdayDate}\n` +
           `Target: Sapu 5x, Pel 2x, WC 1x per minggu\n\n` +
           recapLines.join('\n\n') +
-          `\n\n_Denda dicatat otomatis. Cek detail di dashboard atau tanya Aira._`;
+          `\n\n_Denda dicatat otomatis. Cek detail di dashboard https://mess-track-steel.vercel.app/ atau tanya Aira._`;
         await getSock().sendMessage(recapGroup, { text });
         console.log('[CRON] Weekly recap broadcast sent.');
       }
@@ -165,22 +166,22 @@ export function setupCronJobs(getSock: () => WASocket) {
     } catch (err: unknown) {
       console.error('[CRON] Error during weekly penalty calculation:', err);
     }
+  }, {
+    timezone: TIMEZONE,
   });
 
-  // 3. Automated Billing & Arrears Reminder (Every 10th of the month at 08:00 AM)
+  // 3. Automated Billing & Arrears Reminder (Every 10th of the month at 08:00 AM WIB)
   // Section 4.4 PRD V3: Check if users have paid Rp 65.000 for current month.
   // If not, insert/ensure arrears record, broadcast tag in WA group.
   cron.schedule('0 8 10 * *', async () => {
-    console.log('[CRON] Running 10th of Month Automated Billing & Arrears Reminder...');
+    console.log('[CRON] Running 10th of Month Automated Billing & Arrears Reminder (WIB)...');
     if (!config.isConfigured()) {
       console.warn('[CRON] Supabase not connected. Skipping 10th billing cron.');
       return;
     }
 
     try {
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
+      const { month: currentMonth, year: currentYear } = getJakartaMonthYear();
 
       const { data: allUsers } = await supabase.from('users').select('*');
       if (!allUsers || allUsers.length === 0) return;
@@ -248,6 +249,8 @@ export function setupCronJobs(getSock: () => WASocket) {
     } catch (err: unknown) {
       console.error('[CRON] Error during 10th monthly billing:', err);
     }
+  }, {
+    timezone: TIMEZONE,
   });
 }
 

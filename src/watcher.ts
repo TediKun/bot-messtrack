@@ -1,6 +1,7 @@
 import { WASocket } from '@whiskeysockets/baileys';
 import { supabase } from './supabase.js';
 import { config } from './config.js';
+import { getJakartaDate } from './time.js';
 
 /**
  * Memantau perubahan data keuangan dari web (dashboard admin) dan otomatis
@@ -29,7 +30,7 @@ interface FineRow {
 }
 
 const rupiah = (n: number) => 'Rp' + Math.round(n).toLocaleString('id-ID');
-const dateOf = (iso: string) => String(iso).split('T')[0];
+const dateOf = (iso: string) => (iso ? getJakartaDate(iso) : '-');
 
 function balanceOf(txs: Tx[]) {
   const income = txs

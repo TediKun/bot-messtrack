@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { supabase } from './supabase.js';
+import { TIMEZONE } from './time.js';
 
 export async function generateFinanceExcelBuffer(): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -56,6 +57,7 @@ export async function generateFinanceExcelBuffer(): Promise<Buffer> {
   incomeTxs.forEach((tx, idx) => {
     totalIncome += Number(tx.amount);
     const dateFormatted = new Date(tx.created_at).toLocaleDateString('id-ID', {
+      timeZone: TIMEZONE,
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -122,6 +124,7 @@ export async function generateFinanceExcelBuffer(): Promise<Buffer> {
   expenseTxs.forEach((tx, idx) => {
     totalExpense += Number(tx.amount);
     const dateFormatted = new Date(tx.created_at).toLocaleDateString('id-ID', {
+      timeZone: TIMEZONE,
       day: 'numeric',
       month: 'short',
       year: 'numeric',

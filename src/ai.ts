@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from './config.js';
 import { supabase, fallbackUsers } from './supabase.js';
+import { getJakartaDate, getJakartaWeekRange, getJakartaMonthYear, getJakartaDayName } from './time.js';
 
 let genAI: GoogleGenerativeAI | null = null;
 if (config.geminiApiKey) {
@@ -178,15 +179,10 @@ export async function askAira(
   }
 
   try {
-    // Fetch context data
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const curMonth = now.getMonth() + 1;
-    const curYear = now.getFullYear();
+    // Fetch context data in Asia/Jakarta timezone
+    const { today, dayName, sundayDate: weekStart } = getJakartaWeekRange();
+    const { month: curMonth, year: curYear } = getJakartaMonthYear();
     const rupiah = (n: number) => 'Rp' + Math.round(n).toLocaleString('id-ID');
-    const weekStartDate = new Date(now);
-    weekStartDate.setDate(now.getDate() - now.getDay()); // Minggu
-    const weekStart = weekStartDate.toISOString().split('T')[0];
 
     let schedulesInfo = 'Data jadwal belum terhubung ke database.';
     let finesInfo = 'Belum ada catatan denda.';
@@ -279,6 +275,10 @@ RUANG LINGKUP UTAMA (SELALU JAWAB BEBAS & DETAIL):
 2. Keuangan mess: saldo sisa uang kas, pemasukan, pengeluaran belanja mess, iuran kas & WiFi (Rp65.000/bulan), tunggakan, denda, serta rekap.
 3. Kebersihan & tata tertib mess: tips mengepel/menyapu/kuras WC yang bersih, aturan fasilitas bersama, serta saran menjaga kebersihan mess.
 
+INFORMASI DASHBOARD:
+Link dashboard resmi MessTrack adalah: https://mess-track-steel.vercel.app/
+Ketika pengguna bertanya mengenai detail jadwal piket, aturan piket, keuangan/kas, denda, tunggakan, atau rekap aktivitas, SELALU sertakan pengingat ramah bahwa mereka juga dapat mengecek informasi lengkapnya secara visual di dashboard: https://mess-track-steel.vercel.app/
+
 ATURAN PERTANYAAN DI LUAR KONTEKS MESS:
 Pengguna ini sudah menanyakan pertanyaan di luar topik mess sebanyak: ${currentOffTopicCount} kali (batas maksimal 2 kali).
 - JIKA pertanyaan pengguna berkaitan dengan jadwal, piket, kebersihan, uang, kas, denda, atau masalah mess: Jawablah dengan tuntas dan ramah sesuai fakta di bawah. JANGAN sebutkan batas kuota.
@@ -292,7 +292,7 @@ ATURAN KHUSUS KAS & DENDA:
 - Jika ditanya sisa/saldo uang kas: sebutkan *saldo saat ini*, lalu rinci SEMUA pengeluaran sebagai daftar bernomor (keperluan, nominal, tanggal). JANGAN membahas pemasukan (pemasukan hanya dari bayar kas). Jika ada denda belum lunas, tambahkan rincian denda per orang (siapa, nominal, alasan).
 - Jika ditanya denda: rinci per penghuni — nominal dan penyebabnya (mis. kurang sapu 2x = Rp5.000). Sebutkan total.
 - Aturan piket mingguan (dihitung setiap Sabtu 23:59): Sapu 5x, Pel 2x, WC 1x. Denda: kurang sapu/pel Rp2.500 per kekurangan, belum bersihkan WC Rp5.000. Jika ditanya rekap/progres minggu ini, hitung dari data laporan tugas dan jelaskan siapa yang belum memenuhi target dan dendanya.
-Hari ini: ${today} (bulan ${curMonth}/${curYear}).
+Hari ini: ${dayName}, ${today} (bulan ${curMonth}/${curYear}, zona waktu WIB / Asia/Jakarta).
 [KEUANGAN/KAS] ${financeInfo}
 [TUNGGAKAN IURAN BELUM LUNAS] ${arrearsInfo}
 [DENDA BELUM LUNAS] ${finesInfo}
